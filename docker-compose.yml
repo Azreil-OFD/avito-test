@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  avito-shop-service:
+    container_name: avito-shop-service
+    build: .
+    environment:
+      - HTTP_PORT=8080
+      - PG_URL=postgres://postgres:password@postgres:5432/postgres
+      - JWT_SECRET=you-super-secret
+      - RDB_ADDR=redis:6379
+      - RDB_PASSWORD=password
+      - RDB_DB=0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal
+  db:
+    image: postgres:13-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postgres
+    volumes:
+      - ./migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U postgres -d postgres'"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    command: ["redis-server", "--requirepass", "password"]
+    environment:
+      - REDIS_PASSWORD=password
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "password", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - internal
+
+networks:
+  internal:
